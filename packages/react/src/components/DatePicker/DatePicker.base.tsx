@@ -9,7 +9,13 @@ import {
   getPropsWithDefaults,
 } from '@fluentui/utilities';
 import { Calendar } from '../../Calendar';
-import { FirstWeekOfYear, getDatePartHashValue, compareDatePart, DayOfWeek } from '@fluentui/date-time-utilities';
+import {
+  FirstWeekOfYear,
+  getDatePartHashValue,
+  compareDatePart,
+  DayOfWeek,
+  DateRangeType,
+} from '@fluentui/date-time-utilities';
 import { Callout, DirectionalHint } from '../../Callout';
 import { TextField } from '../../TextField';
 import { FocusTrapZone } from '../../FocusTrapZone';
@@ -31,6 +37,7 @@ const DEFAULT_PROPS: IDatePickerProps = {
   },
   firstDayOfWeek: DayOfWeek.Sunday,
   initialPickerDate: new Date(),
+  dateRangeType: DateRangeType.Day,
   isRequired: false,
   isMonthPickerVisible: true,
   showMonthPickerAsOverlay: false,
@@ -84,14 +91,13 @@ function useCalendarVisibility({ allowTextInput, onAfterMenuDismiss }: IDatePick
   return [isCalendarShown, setIsCalendarShown] as const;
 }
 
-function useSelectedDate({ formatDate, value, onSelectDate }: IDatePickerProps) {
-  const [selectedDate, setSelectedDateState] = useControllableValue(value, undefined, (ev, newValue) =>
-    onSelectDate?.(newValue),
-  );
+function useSelectedDate({ formatDate, value, dateRangeValue, onSelectDate }: IDatePickerProps) {
+  const [selectedDate, setSelectedDateState] = useControllableValue(value, undefined);
   const [formattedDate, setFormattedDate] = React.useState(() => (value && formatDate ? formatDate(value) : ''));
 
-  const setSelectedDate = (newDate: Date | undefined) => {
+  const setSelectedDate = (newDate: Date | undefined, selectedDateRangeArray?: Date[]) => {
     setSelectedDateState(newDate);
+    onSelectDate?.(newDate, selectedDateRangeArray);
     setFormattedDate(newDate && formatDate ? formatDate(newDate) : '');
   };
 
@@ -207,6 +213,7 @@ export const DatePickerBase: React.FunctionComponent<IDatePickerProps> = React.f
 
   const {
     firstDayOfWeek,
+    dateRangeType,
     strings,
     label,
     theme,
@@ -285,12 +292,12 @@ export const DatePickerBase: React.FunctionComponent<IDatePickerProps> = React.f
     }
   };
 
-  const onSelectDate = (date: Date): void => {
+  const onDateSelect = (date: Date, dateRangeArray: Date[]): void => {
     if (props.calendarProps && props.calendarProps.onSelectDate) {
-      props.calendarProps.onSelectDate(date);
+      // setSelectedDate?.(date, dateRangeArray);
+      props.calendarProps.onSelectDate(date, dateRangeArray);
     }
-
-    calendarDismissed(date);
+    calendarDismissed(date, dateRangeArray);
   };
 
   const onCalloutPositioned = (): void => {
@@ -378,13 +385,20 @@ export const DatePickerBase: React.FunctionComponent<IDatePickerProps> = React.f
     }
   };
 
-  const dismissDatePickerPopup = (newlySelectedDate?: Date): void => {
+  const dismissDatePickerPopup = (newlySelectedDate?: Date, newlySelectedDateRangeArray?: Date[]): void => {
     if (isCalendarShown) {
-      setIsCalendarShown(false);
+      if (isCalendarShown) {
+        setIsCalendarShown(false);
+        setIsCalendarShown(false);
 
-      validateTextInput(newlySelectedDate);
-      if (!allowTextInput && newlySelectedDate) {
-        setSelectedDate(newlySelectedDate);
+        validateTextInput(newlySelectedDate);
+        validateTextInput(newlySelectedDate);
+        if (!allowTextInput && newlySelectedDate) {
+          if (!allowTextInput && newlySelectedDate) {
+            setSelectedDate(newlySelectedDate);
+            setSelectedDate(newlySelectedDate, newlySelectedDateRangeArray);
+          }
+        }
       }
     }
   };
@@ -418,9 +432,9 @@ export const DatePickerBase: React.FunctionComponent<IDatePickerProps> = React.f
   /**
    * Callback for closing the calendar callout
    */
-  const calendarDismissed = (newlySelectedDate?: Date): void => {
+  const calendarDismissed = (newlySelectedDate?: Date, newlySelectedDateRangeArray?: Date[]): void => {
     preventNextFocusOpeningPicker();
-    dismissDatePickerPopup(newlySelectedDate);
+    dismissDatePickerPopup(newlySelectedDate, newlySelectedDateRangeArray);
     // don't need to focus the text box, if necessary the focusTrapZone will do it
   };
 
@@ -518,7 +532,7 @@ export const DatePickerBase: React.FunctionComponent<IDatePickerProps> = React.f
             <CalendarType
               {...calendarProps}
               // eslint-disable-next-line react/jsx-no-bind
-              onSelectDate={onSelectDate}
+              onSelectDate={onDateSelect}
               // eslint-disable-next-line react/jsx-no-bind
               onDismiss={calendarDismissed}
               isMonthPickerVisible={props.isMonthPickerVisible}
@@ -526,6 +540,7 @@ export const DatePickerBase: React.FunctionComponent<IDatePickerProps> = React.f
               today={props.today}
               value={selectedDate || initialPickerDate}
               firstDayOfWeek={firstDayOfWeek}
+              dateRangeType={dateRangeType!}
               strings={strings!}
               highlightCurrentMonth={props.highlightCurrentMonth}
               highlightSelectedMonth={props.highlightSelectedMonth}
